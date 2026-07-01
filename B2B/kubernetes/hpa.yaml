@@ -1,0 +1,382 @@
+# kubernetes/hpa.yaml
+# Horizontal Pod Autoscaler برای مقیاس‌پذیری خودکار سرویس‌های سامانه تشخیص پلاک
+# شامل: HPA پایه، HPA پیشرفته با متریک‌های سفارشی، و HPA برای سرویس‌های مختلف
+
+---
+# ==================== HPA برای Backend API (پایه) ====================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: anpr-system
+  labels:
+    app: backend
+    component: hpa
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  # متریک مبتنی بر CPU
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  # متریک مبتنی بر Memory
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+      - type: Pods
+        value: 1
+        periodSeconds: 120
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 2
+        periodSeconds: 60
+      selectPolicy: Max
+
+---
+# ==================== HPA برای Backend (پیشرفته با متریک‌های سفارشی) ====================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa-advanced
+  namespace: anpr-system
+  labels:
+    app: backend
+    component: hpa-advanced
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  # متریک CPU
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 65
+  # متریک Memory
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 75
+  # متریک سفارشی: تعداد درخواست‌ها در ثانیه (نیاز به Prometheus Adapter)
+  - type: Pods
+    pods:
+      metric:
+        name: http_requests_per_second
+      target:
+        type: AverageValue
+        averageValue: 100
+  # متریک سفارشی: طول صف RabbitMQ
+  - type: Pods
+    pods:
+      metric:
+        name: rabbitmq_queue_length
+      target:
+        type: AverageValue
+        averageValue: 50
+  # متریک سفارشی: استفاده از GPU (در صورت وجود)
+  - type: Pods
+    pods:
+      metric:
+        name: nvidia_gpu_utilization
+      target:
+        type: AverageValue
+        averageValue: 60
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+      - type: Percent
+        value: 25
+        periodSeconds: 90
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Percent
+        value: 200
+        periodSeconds: 15
+
+---
+# ==================== HPA برای Frontend ====================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: frontend-hpa
+  namespace: anpr-system
+  labels:
+    app: frontend
+    component: hpa
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: frontend
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85
+  # متریک سفارشی: تعداد کاربران همزمان
+  - type: Pods
+    pods:
+      metric:
+        name: streamlit_active_sessions
+      target:
+        type: AverageValue
+        averageValue: 50
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 30
+        periodSeconds: 120
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+        ---
+# ==================== HPA برای سرویس OCR (مقیاس‌پذیری بالا) ====================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ocr-hpa
+  namespace: anpr-system
+  labels:
+    app: ocr
+    component: hpa
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: ocr-service
+  minReplicas: 2
+  maxReplicas: 15
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85
+  # متریک سفارشی: طول صف RabbitMQ برای OCR
+  - type: Pods
+    pods:
+      metric:
+        name: rabbitmq_queue_length_ocr
+      target:
+        type: AverageValue
+        averageValue: 30
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 15
+      policies:
+      - type: Percent
+        value: 200
+        periodSeconds: 10
+
+---
+# ==================== HPA برای سرویس تشخیص (Detection) با GPU ====================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: detection-hpa
+  namespace: anpr-system
+  labels:
+    app: detection
+    component: hpa
+    environment: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: detection-service
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  # متریک GPU (برای پادهایی که GPU دارند)
+  - type: Pods
+    pods:
+      metric:
+        name: nvidia_gpu_utilization
+      target:
+        type: AverageValue
+        averageValue: 70
+  - type: Pods
+    pods:
+      metric:
+        name: nvidia_gpu_memory_used
+      target:
+        type: AverageValue
+        averageValue: 4096  # 4GB
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+      - type: Pods
+        value: 1
+        periodSeconds: 60
+
+---
+# ==================== CronJob برای جمع‌آوری متریک‌های سفارشی ====================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: metric-collector
+  namespace: anpr-system
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: collector
+            image: curlimages/curl:latest
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # جمع‌آوری متریک RabbitMQ
+              QUEUE_LENGTH=$(curl -s -u guest:guest http://rabbitmq-service:15672/api/queues/%2F/ocr_queue | jq '.messages_ready')
+              echo "rabbitmq_queue_length_ocr $QUEUE_LENGTH" | curl --data-binary @- http://prometheus-service:9090/metrics/job/rabbitmq
+              
+              # جمع‌آوری متریک HTTP requests
+              REQUESTS=$(kubectl logs -n anpr-system deployment/backend --tail=60 | grep -c "POST /detect")
+              echo "http_requests_per_second $REQUESTS" | curl --data-binary @- http://prometheus-service:9090/metrics/job/http
+              
+              # جمع‌آوری متریک استریملیت
+              SESSIONS=$(kubectl logs -n anpr-system deployment/frontend --tail=100 | grep -c "session")
+              echo "streamlit_active_sessions $SESSIONS" | curl --data-binary @- http://prometheus-service:9090/metrics/job/streamlit
+          restartPolicy: OnFailure
+
+---
+# ==================== ServiceMonitor برای Prometheus ====================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: anpr-monitor
+  namespace: anpr-system
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+  - port: http
+    path: /health
+    interval: 10s
+    ---
+# ==================== PodDisruptionBudget برای اطمینان از در دسترس بودن ====================
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: anpr-system
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: backend
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: anpr-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: frontend
+
+---
+# ==================== Vertical Pod Autoscaler (اختیاری - برای بهینه‌سازی منابع) ====================
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: backend-vpa
+  namespace: anpr-system
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind: Deployment
+    name: backend
+  updatePolicy:
+    updateMode: "Auto"
+  resourcePolicy:
+    containerPolicies:
+    - containerName: "*"
+      minAllowed:
+        cpu: "250m"
+        memory: "512Mi"
+      maxAllowed:
+        cpu: "4"
+        memory: "8Gi"

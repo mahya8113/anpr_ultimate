@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>راهنمای جامع سامانه تشخیص پلاک خودرو | ANPR</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Vazirmatn', 'Tahoma', 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            color: #1e293b;
+            line-height: 1.6;
+        }
+        
+        /* هدر */
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .header::before {
+            content: "🚗";
+            position: absolute;
+            bottom: -20px;
+            right: -20px;
+            font-size: 150px;
+            opacity: 0.1;
+        }
+        
+        /* کانتینر اصلی */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        /* نوار کناری */
+        .sidebar {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 20px;
+        }
+        
+        .sidebar h3 {
+            color: #1e3c72;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .sidebar ul {
+            list-style: none;
+        }
+        
+        .sidebar li {
+            margin-bottom: 10px;
+        }
+        
+        .sidebar a {
+            color: #475569;
+            text-decoration: none;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar a:hover {
+            background: #f1f5f9;
+            color: #1e3c72;
+            padding-right: 20px;
+        }
+        
+        /* محتوای اصلی */
+        .content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            scroll-margin-top: 20px;
+        }
+        
+        .section h2 {
+            color: #1e3c72;
+            border-right: 4px solid #1e3c72;
+            padding-right: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .section h3 {
+            color: #2a5298;
+            margin: 20px 0 10px 0;
+        }
+        
+        /* کارت‌ها */
+        .card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #1e3c72;
+            margin-bottom: 10px;
+        }
+        
+        /* جعبه نکات */
+        .tip-box {
+            background: #fef3c7;
+            border-right: 4px solid #f59e0b;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .warning-box {
+            background: #fee2e2;
+            border-right: 4px solid #ef4444;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .info-box {
+        background: #dbeafe;
+            border-right: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        .success-box {
+            background: #d1fae5;
+            border-right: 4px solid #10b981;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+        
+        /* جدول */
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: right;
+        }
+        
+        th {
+            background: #1e3c72;
+            color: white;
+            font-weight: 500;
+        }
+        
+        tr:hover {
+            background: #f8fafc;
+        }
+        
+        /* فوتر */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        /* پاسخگو */
+        @media (min-width: 768px) {
+            .main-grid {
+                display: grid;
+                grid-template-columns: 280px 1fr;
+                gap: 20px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            .content {
+                padding: 20px;
+            }
+        }
+        
+        /* دکمه */
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #1e3c72;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #2a5298;
+            transform: translateY(-2px);
+        }
+        
+        /* کد */
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 10px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        /* لیست ویژگی‌ها */
+        .feature-list {
+            list-style: none;
+        }
+        
+        .feature-list li {
+            margin-bottom: 10px;
+            padding-right: 25px;
+            position: relative;
+        }
+        
+        .feature-list li::before {
+            content: "✅";
+            position: absolute;
+            right: 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📖 راهنمای جامع سامانه تشخیص پلاک خودرو</h1>
+    <p>سیستم پیشرفته ANPR با قابلیت‌های هوش مصنوعی - راهنمای کامل کاربری</p>
+    <p>نسخه 3.0 | آخرین بروزرسانی: فروردین ۱۴۰۴</p>
+</div>
+
+<div class="container">
+    <div class="main-grid">
+        <!-- نوار کناری -->
+        <aside class="sidebar">
+            <h3>📑 فهرست مطالب</h3>
+            <ul>
+                <li><a href="#introduction">🔰 معرفی سامانه</a></li>
+                <li><a href="#features">✨ قابلیت‌ها</a></li>
+                <li><a href="#quick-start">🚀 شروع سریع</a></li>
+                <li><a href="#login">🔐 ورود و ثبت نام</a></li>
+                <li><a href="#upload">📤 آپلود و تشخیص</a></li>
+                <li><a href="#live">📡 پایش زنده</a></li>
+                <li><a href="#reports">📊 گزارش‌گیری</a></li>
+                <li><a href="#admin">👑 مدیریت سیستم</a></li>
+                <li><a href="#settings">⚙️ تنظیمات</a></li>
+                <li><a href="#faq">❓ سوالات متداول</a></li>
+                <li><a href="#support">📞 پشتیبانی</a></li>
+            </ul>
+        </aside>
+        <!-- محتوای اصلی -->
+        <main class="content">
+            
+            <!-- معرفی -->
+            <section id="introduction" class="section">
+                <h2>🔰 معرفی سامانه</h2>
+                <p>سامانه هوشمند تشخیص پلاک خودرو (ANPR) یک راهکار پیشرفته مبتنی بر هوش مصنوعی است که قادر به شناسایی خودکار پلاک خودروهای ایرانی در شرایط مختلف نوری و آب‌وهوایی می‌باشد.</p>
+                
+                <div class="info-box">
+                    <strong>💡 درباره ما:</strong>
+                    <p>این سامانه با استفاده از الگوریتم‌های یادگیری عمیق (Deep Learning) و شبکه‌های عصبی پیشرفته، قادر است پلاک خودروها را با دقت بالای ۹۵٪ تشخیص دهد. سیستم از پردازش لحظه‌ای (Real-time) پشتیبانی کرده و می‌تواند همزمان چندین دوربین را پایش کند.</p>
+                </div>
+            </section>
+
+            <!-- قابلیت‌ها -->
+            <section id="features" class="section">
+                <h2>✨ قابلیت‌های سامانه</h2>
+                <ul class="feature-list">
+                    <li>تشخیص خودکار پلاک خودروهای ایرانی با دقت بالا</li>
+                    <li>پشتیبانی از تصاویر و ویدئو (MP4, AVI, MOV, JPG, PNG)</li>
+                    <li>عملکرد عالی در نور کم و شرایط نامساعد جوی</li>
+                    <li>تشخیص ناهنجاری و هشدار لحظه‌ای</li>
+                    <li>ردیابی چند شیء همزمان (Multi-Object Tracking)</li>
+                    <li>گزارش‌گیری پیشرفته با خروجی PDF، Excel و CSV</li>
+                    <li>اعلان‌های خودکار از طریق ایمیل و تلگرام</li>
+                    <li>پنل مدیریت سازمانی برای ادمین‌ها</li>
+                    <li>قابلیت استقرار روی سرورهای داخلی (On-Premise)</li>
+                    <li>امنیت بالا با احراز هویت دو مرحله‌ای</li>
+                </ul>
+            </section>
+
+            <!-- شروع سریع -->
+            <section id="quick-start" class="section">
+                <h2>🚀 شروع سریع</h2>
+                <div class="tip-box">
+                    <strong>📌 نکته:</strong> برای استفاده از سامانه، ابتدا باید ثبت نام کرده و وارد شوید.
+                </div>
+                <ol>
+                    <li>آدرس سامانه را در مرورگر خود وارد کنید: <code>http://your-server:8501</code></li>
+                    <li>روی دکمه <strong>"ثبت نام"</strong> کلیک کنید و اطلاعات خود را وارد نمایید</li>
+                    <li>پس از تأیید ثبت نام، با ایمیل و رمز عبور وارد شوید</li>
+                    <li>از منوی کناری، بخش مورد نظر خود را انتخاب کنید</li>
+                </ol>
+            </section>
+
+            <!-- ورود و ثبت نام -->
+            <section id="login" class="section">
+                <h2>🔐 ورود و ثبت نام</h2>
+                
+                <h3>ثبت نام</h3>
+                <div class="card">
+                    <div class="card-title">مراحل ثبت نام:</div>
+                    <ol>
+                        <li>روی دکمه <strong>"ثبت نام"</strong> در صفحه ورود کلیک کنید</li>
+                        <li>اطلاعات زیر را وارد کنید:
+                            <ul>
+                                <li>ایمیل معتبر</li>
+                                <li>نام کامل</li>
+                                <li>رمز عبور (حداقل ۶ کاراکتر)</li>
+                                <li>نام سازمان یا شرکت شما</li>
+                            </ul>
+                        </li>
+                        <li>روی <strong>"ثبت نام"</strong> کلیک کنید</li>
+                        <li>پس از ثبت نام، به طور خودکار وارد سامانه می‌شوید</li>
+                    </ol>
+                </div>
+
+                <h3>ورود به سامانه</h3>
+                <div class="card">
+                    <div class="card-title">مراحل ورود:</div>
+                    <ol>
+                        <li>ایمیل خود را وارد کنید</li>
+                        <li>رمز عبور را وارد کنید</li>
+                        <li>روی <strong>"ورود"</strong> کلیک کنید</li>
+                    </ol>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ امنیت:</strong> هرگز رمز عبور خود را در اختیار دیگران قرار ندهید. در صورت فراموشی رمز عبور، با پشتیبانی تماس بگیرید.
+                </div>
+            </section>
+            <!-- آپلود و تشخیص -->
+            <section id="upload" class="section">
+                <h2>📤 آپلود و تشخیص پلاک</h2>
+                
+                <h3>تشخیص از تصویر</h3>
+                <div class="card">
+                    <ol>
+                        <li>از منوی کناری، <strong>"آپلود و پردازش"</strong> را انتخاب کنید</li>
+                        <li>در تب <strong>"تصویر"</strong>، فایل تصویر خود را آپلود کنید</li>
+                        <li>در صورت نیاز، تنظیمات پیشرفته را فعال کنید</li>
+                        <li>روی <strong>"تشخیص پلاک"</strong> کلیک کنید</li>
+                        <li>نتایج شامل پلاک، میزان اطمینان و تصویر آنوتیشن شده نمایش داده می‌شود</li>
+                    </ol>
+                </div>
+
+                <h3>تشخیص از ویدئو</h3>
+                <div class="card">
+                    <ol>
+                        <li>در تب <strong>"ویدئو"</strong>، فایل ویدئوی خود را آپلود کنید</li>
+                        <li>فاصله فریم‌ها و تنظیمات پردازش را مشخص کنید</li>
+                        <li>روی <strong>"شروع پردازش ویدئو"</strong> کلیک کنید</li>
+                        <li>پس از اتمام پردازش، آمار و نتایج نمایش داده می‌شود</li>
+                    </ol>
+                </div>
+
+                <div class="tip-box">
+                    <strong>💡 نکته:</strong> برای بهترین نتیجه، از تصاویر با کیفیت و وضوح مناسب استفاده کنید. نور مناسب و زاویه دید مستقیم به پلاک، دقت تشخیص را افزایش می‌دهد.
+                </div>
+            </section>
+
+            <!-- پایش زنده -->
+            <section id="live" class="section">
+                <h2>📡 پایش زنده</h2>
+                <p>در بخش پایش زنده می‌توانید دوربین‌های متصل به سامانه را به صورت لحظه‌ای مشاهده کرده و تشخیص پلاک را در زمان واقعی ببینید.</p>
+                
+                <div class="card">
+                    <div class="card-title">مراحل استفاده از پایش زنده:</div>
+                    <ol>
+                        <li>از منوی کناری، <strong>"پایش زنده"</strong> را انتخاب کنید</li>
+                        <li>دوربین مورد نظر را از لیست انتخاب کنید</li>
+                        <li>روی <strong>"شروع پخش"</strong> کلیک کنید</li>
+                        <li>تصویر زنده دوربین نمایش داده می‌شود</li>
+                        <li>پلاک‌های تشخیص داده شده به صورت لحظه‌ای نمایش داده می‌شوند</li>
+                    </ol>
+                </div>
+
+                <div class="info-box">
+                    <strong>ℹ️ نکته فنی:</strong> برای اتصال دوربین‌های IP، آدرس RTSP باید در بخش مدیریت دوربین‌ها ثبت شود. فرمت آدرس: <code>rtsp://username:password@ip:port/stream</code>
+                </div>
+            </section>
+
+            <!-- گزارش‌گیری -->
+            <section id="reports" class="section">
+                <h2>📊 گزارش‌گیری</h2>
+                
+                <div class="card">
+                    <div class="card-title">گزارش تشخیص پلاک:</div>
+                    <ol>
+                        <li>از منوی کناری، <strong>"گزارش‌ها"</strong> را انتخاب کنید</li>
+                        <li>بازه زمانی مورد نظر را انتخاب کنید</li>
+                        <li>در صورت نیاز، سازمان و دوربین را فیلتر کنید</li>
+                        <li>گزارش به صورت جدول و نمودار نمایش داده می‌شود</li>
+                        <li>برای دانلود، فرمت خروجی (PDF، Excel، CSV) را انتخاب کرده و روی <strong>"دانلود"</strong> کلیک کنید</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">جستجوی پلاک خاص:</div>
+                    <ol>
+                        <li>در بخش <strong>"جستجوی پلاک"</strong>، شماره پلاک را وارد کنید</li>
+                        <li>تعداد روزهای گذشته را مشخص کنید</li>
+                        <li>تاریخچه تردد و آمار نمایش داده می‌شود</li>
+                    </ol>
+                </div>
+
+                <div class="tip-box">
+                    <strong>💡 نکته:</strong> گزارش‌های تولید شده شامل اطلاعاتی مانند شماره پلاک، زمان تشخیص، میزان اطمینان و تصویر خودرو می‌باشد.
+                </div>
+            </section>
+            <!-- مدیریت سیستم -->
+            <section id="admin" class="section">
+                <h2>👑 مدیریت سیستم</h2>
+                <p>بخش مدیریت فقط برای کاربرانی با نقش <strong>مدیر (Admin)</strong> قابل دسترسی است.</p>
+                
+                <div class="card">
+                    <div class="card-title">مدیریت سازمان‌ها:</div>
+                    <ul>
+                        <li>مشاهده لیست تمام سازمان‌ها</li>
+                        <li>ایجاد سازمان جدید</li>
+                        <li>ویرایش و حذف سازمان</li>
+                        <li>مشاهده آمار کاربران و دوربین‌های هر سازمان</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">مدیریت کاربران:</div>
+                    <ul>
+                        <li>مشاهده لیست کاربران هر سازمان</li>
+                        <li>ایجاد کاربر جدید با نقش‌های مختلف (Admin, Operator, Viewer)</li>
+                        <li>ویرایش و حذف کاربران</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">مدیریت دوربین‌ها:</div>
+                    <ul>
+                        <li>اضافه کردن دوربین جدید (RTSP، ONVIF، HTTP، USB)</li>
+                        <li>مشاهده وضعیت آنلاین بودن دوربین</li>
+                        <li>ویرایش و حذف دوربین</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <strong>⚠️ توجه:</strong> حذف یک سازمان، تمام داده‌های مرتبط (کاربران، دوربین‌ها، گزارش‌ها) را نیز حذف می‌کند. این عملیات غیرقابل بازگشت است.
+                </div>
+            </section>
+
+            <!-- تنظیمات -->
+            <section id="settings" class="section">
+                <h2>⚙️ تنظیمات</h2>
+                
+                <div class="card">
+                    <div class="card-title">تنظیمات تشخیص:</div>
+                    <ul>
+                        <li><strong>آستانه اطمینان:</strong> میزان حساسیت تشخیص پلاک (پیش‌فرض: ۵۰٪)</li>
+                        <li><strong>پیش‌پردازش تصویر:</strong> بهبود کنتراست و کاهش نویز</li>
+                        <li><strong>ماژول‌های پیشرفته:</strong> فعال/غیرفعال کردن تخمین عمق و قطعه‌بندی</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">تنظیمات اعلان:</div>
+                    <ul>
+                        <li>فعال کردن اعلان ایمیل و تلگرام</li>
+                        <li>تعیین رویدادهای دریافت اعلان (تشخیص پلاک، ناهنجاری، ورود/خروج)</li>
+                        <li>تنظیم Webhook برای یکپارچه‌سازی با سامانه‌های دیگر</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">تنظیمات حریم خصوصی:</div>
+                    <ul>
+                        <li>مدت نگهداری تصاویر خام (روز)</li>
+                        <li>محو کردن خودکار چهره رانندگان</li>
+                        <li>ناشناس‌سازی پلاک‌های سایر خودروها</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- سوالات متداول -->
+            <section id="faq" class="section">
+                <h2>❓ سوالات متداول</h2>
+                
+                <div class="card">
+                    <div class="card-title">سیستم چه فرمت‌های تصویری را پشتیبانی می‌کند؟</div>
+                    <p>سامانه از فرمت‌های JPG، JPEG، PNG، BMP برای تصاویر و MP4، AVI، MOV، MKV برای ویدئو پشتیبانی می‌کند.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">دقت تشخیص پلاک چقدر است؟</div>
+                    <p>در شرایط نوری مناسب و زاویه دید مستقیم، دقت تشخیص بالای ۹۵٪ است. در شرایط نامساعد، دقت بین ۸۵ تا ۹۰٪ می‌باشد.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">آیا سامانه از پلاک‌های موتورسیکلت پشتیبانی می‌کند؟</div>
+                    <p>بله، سامانه قادر به تشخیص پلاک موتورسیکلت‌ها نیز می‌باشد.</p>
+                </div>
+                <div class="card">
+                    <div class="card-title">هزینه استفاده از سامانه چقدر است؟</div>
+                    <p>سامانه به صورت اشتراکی (ماهانه/سالانه) و دائمی (یکبار خرید) قابل ارائه است. برای اطلاع از قیمت‌ها با بخش فروش تماس بگیرید.</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">آیا می‌توانم سامانه را روی سرور خودم نصب کنم؟</div>
+                    <p>بله، سامانه قابلیت نصب روی سرورهای داخلی سازمان (On-Premise) را دارد.</p>
+                </div>
+            </section>
+
+            <!-- پشتیبانی -->
+            <section id="support" class="section">
+                <h2>📞 پشتیبانی</h2>
+                
+                <div class="success-box">
+                    <strong>📧 ایمیل:</strong> support@anpr.ir<br>
+                    <strong>📞 تلفن:</strong> ۰۲۱-۱۲۳۴۵۶۷۸<br>
+                    <strong>📱 ایتا/بله:</strong> @anpr_support<br>
+                    <strong>🕐 ساعات پاسخگویی:</strong> شنبه تا پنجشنبه ۹:۰۰ تا ۱۷:۰۰
+                </div>
+
+                <div class="tip-box">
+                    <strong>💡 نکته:</strong> قبل از تماس، لطفاً شماره سازمان و نام کاربری خود را آماده داشته باشید تا فرآیند پشتیبانی سریع‌تر انجام شود.
+                </div>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+<div class="footer">
+    <p>سامانه هوشمند تشخیص پلاک خودروهای ایران | ANPR Enterprise 3.0</p>
+    <p>تمامی حقوق محفوست © ۱۴۰۴</p>
+    <p>طراحی و توسعه توسط تیم فنی ANPR</p>
+</div>
+
+</body>
+</html>

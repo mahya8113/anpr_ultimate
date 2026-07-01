@@ -1,0 +1,386 @@
+{
+  "dashboard": {
+    "title": "ANPR System Monitoring - سامانه تشخیص پلاک",
+    "description": "داشبورد جامع مانیتورینگ سامانه تشخیص پلاک خودروهای ایران",
+    "tags": ["anpr", "license-plate", "detection", "monitoring"],
+    "timezone": "browser",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "وضعیت سرویس‌ها (Service Health)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "up{job=\"backend\"}",
+            "legendFormat": "Backend API"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "1", "text": "🟢 آنلاین"},
+              {"type": "value", "value": "0", "text": "🔴 آفلاین"}
+            ],
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 1},
+                {"color": "red", "value": 0}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "تعداد کل تشخیص‌ها",
+        "type": "stat",
+        "gridPos": {"x": 4, "y": 0, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "sum(anpr_detections_total)",
+            "legendFormat": "تشخیص"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "blue", "value": 0}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "میانگین اطمینان تشخیص",
+        "type": "stat",
+        "gridPos": {"x": 8, "y": 0, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "avg(anpr_detection_confidence)",
+            "legendFormat": "اطمینان"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.6},
+                {"color": "green", "value": 0.8}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "زمان پاسخ API",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 4, "h": 3},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "P95"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 2}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "CPU Usage - مصرف پردازنده",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 4, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"anpr-system\"}[5m])) by (pod)",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": {"mode": "palette-classic"},
+            "custom": {"lineInterpolation": "smooth"}
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Memory Usage - مصرف حافظه",
+        "type": "timeseries",
+        "gridPos": {"x": 8, "y": 4, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(container_memory_usage_bytes{namespace=\"anpr-system\"}) by (pod)",
+            "legendFormat": "{{pod}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "نرخ تشخیص پلاک (در دقیقه)",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 10, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "rate(anpr_detections_total[1m])",
+            "legendFormat": "تشخیص در دقیقه"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "cpm",
+            "color": {"mode": "thresholds"}
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "دقت تشخیص بر اساس دوربین",
+        "type": "bargauge",
+        "gridPos": {"x": 8, "y": 10, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "avg(anpr_detection_confidence) by (camera)",
+            "legendFormat": "{{camera}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": 0},
+                {"color": "yellow", "value": 0.7},
+                {"color": "green", "value": 0.85}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "توزیع پلاک‌های تشخیص داده شده (Top 10)",
+        "type": "barchart",
+        "gridPos": {"x": 0, "y": 16, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "topk(10, sum(anpr_detections_total) by (plate_text))",
+            "legendFormat": "{{plate_text}}"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "RabbitMQ Queue Length - طول صف",
+        "type": "timeseries",
+        "gridPos": {"x": 8, "y": 16, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "rabbitmq_queue_messages_ready",
+            "legendFormat": "{{queue}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "green", "value": 0},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 500}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "HTTP Request Rate - نرخ درخواست‌ها",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 22, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m])) by (method)",
+            "legendFormat": "{{method}}"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "HTTP Status Codes - کدهای وضعیت",
+        "type": "piechart",
+        "gridPos": {"x": 8, "y": 22, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "sum(http_requests_total) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "options": {
+          "displayLabels": ["name", "percent"],
+          "legend": {"displayMode": "list", "placement": "right"}
+        }
+      },
+      {
+        "id": 13,
+        "title": "GPU Utilization - مصرف GPU",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 28, "w": 8, "h": 6},
+        "targets": [
+          {
+            "expr": "nvidia_gpu_utilization",
+            "legendFormat": "GPU {{gpu}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 14,
+        "title": "GPU Memory - حافظه GPU",
+        "type": "timeseries",
+        "gridPos": {"x": 8, "y": 28, "w": 8, "h": 6},
+        "targets": [
+            {
+            "expr": "nvidia_gpu_memory_used_bytes / nvidia_gpu_memory_total_bytes * 100",
+            "legendFormat": "GPU {{gpu}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        }
+      },
+      {
+        "id": 15,
+        "title": "System Alerts - هشدارهای سیستم",
+        "type": "alertlist",
+        "gridPos": {"x": 0, "y": 34, "w": 16, "h": 6},
+        "targets": [],
+        "options": {
+          "showOptions": "current",
+          "sortOrder": 1,
+          "alertName": "حالت پیش‌فرض"
+        }
+      },
+      {
+        "id": 16,
+        "title": "Logs Summary - خلاصه لاگ‌ها",
+        "type": "logs",
+        "gridPos": {"x": 0, "y": 40, "w": 16, "h": 8},
+        "targets": [
+          {
+            "expr": "{namespace=\"anpr-system\"}",
+            "legendFormat": "log"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 36,
+    "version": 1,
+    "timepicker": {
+      "refresh_intervals": ["5s", "10s", "30s", "1m", "5m", "15m", "30m", "1h", "2h", "1d"],
+      "time_options": ["5m", "15m", "1h", "6h", "12h", "24h", "2d", "7d", "30d"]
+    },
+    "variables": [
+      {
+        "name": "namespace",
+        "type": "query",
+        "query": "label_values(container_memory_usage_bytes, namespace)",
+        "label": "Namespace",
+        "current": {"value": "anpr-system", "text": "anpr-system"}
+      },
+      {
+        "name": "pod",
+        "type": "query",
+        "query": "label_values(container_memory_usage_bytes{namespace=\"$namespace\"}, pod)",
+        "label": "Pod",
+        "includeAll": true,
+        "multi": true,
+        "current": {"value": "All", "text": "All"}
+      },
+      {
+        "name": "camera",
+        "type": "query",
+        "query": "label_values(anpr_detections_total, camera)",
+        "label": "دوربین",
+        "includeAll": true,
+        "current": {"value": "All", "text": "All"}
+      }
+    ],
+    "links": [
+      {
+        "title": "Prometheus",
+        "url": "http://prometheus:9090",
+        "targetBlank": true
+      },
+      {
+        "title": "Alertmanager",
+        "url": "http://alertmanager:9093",
+        "targetBlank": true
+      },
+      {
+        "title": "مستندات سیستم",
+        "url": "/docs",
+        "targetBlank": true
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "name": "استقرار جدید",
+          "datasource": "Prometheus",
+          "expr": "changes(kube_deployment_status_observed_generation{namespace=\"anpr-system\"}[1h]) > 0",
+          "title": "Deployment",
+          "text": "نسخه جدید مستقر شد",
+          "iconColor": "green"
+        },
+        {
+          "name": "هشدارها",
+          "datasource": "Prometheus",
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "title": "Alert",
+          "text": "{{alertname}}",
+          "iconColor": "red"
+        }
+      ]
+    }
+  }
+}

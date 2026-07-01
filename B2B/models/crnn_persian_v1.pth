@@ -1,0 +1,372 @@
+"""
+train_crnn.py - آموزش مدل CRNN برای تشخیص حروف و اعداد فارسی پلاک
+خروجی: models/crnn_persian_v1.pth
+"""
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+import cv2
+import numpy as np
+import os
+import json
+from tqdm import tqdm
+import string
+
+# ==================== تنظیمات ====================
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f"Using device: {DEVICE}")
+
+# کاراکترهای فارسی و اعداد (حروف و اعداد مجاز در پلاک ایران)
+PERSIAN_CHARS = 'ابپتثجچحخدذرزژسشصضطظعغفقکگلمنوهی'
+PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹'
+ENGLISH_DIGITS = '0123456789'
+
+# ترکیب همه کاراکترهای مجاز (برای پلاک ایران)
+ALL_CHARS = PERSIAN_CHARS + PERSIAN_DIGITS + ENGLISH_DIGITS
+CHAR2IDX = {ch: i + 1 for i, ch in enumerate(ALL_CHARS)}  # 0 برای blank
+IDX2CHAR = {i + 1: ch for i, ch in enumerate(ALL_CHARS)}
+NUM_CLASSES = len(ALL_CHARS) + 1  # +1 برای blank
+print(f"Number of characters: {NUM_CLASSES} (including blank)")
+
+
+# ==================== مدل CRNN ====================
+class CRNN(nn.Module):
+    """
+    CRNN برای تشخیص متن از تصویر
+    """
+    def init(self, num_classes, hidden_size=256, input_height=48, input_width=160):
+        super(CRNN, self).__init__()
+        
+        # CNN بخش: استخراج ویژگی
+        self.cnn = nn.Sequential(
+            # لایه 1
+            nn.Conv2d(1, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),
+            
+            # لایه 2
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),
+            
+            # لایه 3
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2, 2),
+            
+            # لایه 4
+            nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d((2, 1), (2, 1)),
+        )
+        
+        # محاسبه اندازه خروجی CNN
+        self.input_height = input_height
+        self.input_width = input_width
+        
+        # RNN بخش: LSTM دوطرفه
+        self.rnn = nn.LSTM(
+            input_size=512 * (input_height // 16),  # 48/16=3, 512*3=1536
+            hidden_size=hidden_size,
+            num_layers=2,
+            bidirectional=True,
+            batch_first=True,
+            dropout=0.5
+        )
+        
+        # FC لایه نهایی
+        self.fc = nn.Linear(hidden_size * 2, num_classes)
+        
+    def forward(self, x):
+        # x: (batch, channel, height, width)
+        batch_size = x.size(0)
+        
+        # CNN
+        features = self.cnn(x)  # (batch, 512, height/16, width/4)
+        
+        # آماده‌سازی برای RNN: (batch, width/4, 512 * (height/16))
+        features = features.permute(0, 3, 1, 2)  # (batch, width, channel, height)
+        features = features.reshape(batch_size, -1, features.size(1) * features.size(2))
+        
+        # RNN
+        rnn_out, _ = self.rnn(features)  # (batch, width, hidden*2)
+        
+        # FC
+        output = self.fc(rnn_out)  # (batch, width, num_classes)
+        
+        return output
+
+
+# ==================== دیتاست ====================
+class PersianPlateDataset(Dataset):
+    """
+    دیتاست تصاویر پلاک با برچسب‌های متنی
+    ساختار پوشه:
+    dataset/
+        images/
+            plate_001.jpg
+            plate_002.jpg
+        labels.json
+    """
+    def init(self, data_dir, img_height=48, img_width=160, augment=False):
+        self.data_dir = data_dir
+        self.img_height = img_height
+        self.img_width = img_width
+        self.augment = augment
+        
+        # بارگذاری برچسب‌ها
+        with open(os.path.join(data_dir, 'labels.json'), 'r', encoding='utf-8') as f:
+        self.labels = json.load(f)
+        
+        self.images = list(self.labels.keys())
+    
+    def len(self):
+        return len(self.images)
+    
+    def getitem(self, idx):
+        img_name = self.images[idx]
+        text = self.labels[img_name]
+        
+        # بارگذاری و پیش‌پردازش تصویر
+        img_path = os.path.join(self.data_dir, 'images', img_name)
+        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        
+        if img is None:
+            raise ValueError(f"تصویر {img_path} یافت نشد")
+        
+        # تغییر اندازه
+        img = cv2.resize(img, (self.img_width, self.img_height))
+        
+        # نرمال‌سازی
+        img = img.astype(np.float32) / 255.0
+        
+        # تبدیل به تانسور
+        img = torch.tensor(img).unsqueeze(0)  # (1, H, W)
+        
+        # تبدیل متن به ایندکس
+        target = [CHAR2IDX[ch] for ch in text if ch in CHAR2IDX]
+        target = torch.tensor(target)
+        
+        return img, target, text
+    
+    @staticmethod
+    def collate_fn(batch):
+        """ترکیب batch با طول‌های مختلف"""
+        images, targets, texts = zip(*batch)
+        images = torch.stack(images)
+        
+        # محاسبه طول هدف‌ها
+        target_lengths = torch.tensor([len(t) for t in targets])
+        targets_concat = torch.cat(targets)
+        
+        return images, targets_concat, target_lengths, texts
+
+
+# ==================== تابع CTC Decode ====================
+def decode_predictions(preds):
+    """تبدیل خروجی مدل به متن"""
+    preds = preds.permute(1, 0, 2)  # (T, B, C)
+    preds = torch.softmax(preds, dim=2)
+    preds = torch.argmax(preds, dim=2)  # (T, B)
+    
+    batch_size = preds.size(1)
+    texts = []
+    
+    for b in range(batch_size):
+        text = ''
+        prev = 0
+        for t in range(preds.size(0)):
+            char_idx = preds[t, b].item()
+            if char_idx != 0 and char_idx != prev:
+                text += IDX2CHAR.get(char_idx, '')
+            prev = char_idx
+        texts.append(text)
+    
+    return texts
+
+
+# ==================== آموزش مدل ====================
+def train_model(train_loader, val_loader, epochs=100, lr=0.001):
+    """حلقه آموزش مدل CRNN"""
+    model = CRNN(NUM_CLASSES).to(DEVICE)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=5)
+    criterion = nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
+    
+    best_loss = float('inf')
+    
+    for epoch in range(epochs):
+        # ========== آموزش ==========
+        model.train()
+        train_loss = 0
+        train_correct = 0
+        train_total = 0
+        
+        pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{epochs} [Train]")
+        for images, targets, target_lengths, texts in pbar:
+            images = images.to(DEVICE)
+            targets = targets.to(DEVICE)
+            
+            optimizer.zero_grad()
+            
+            # پیش‌بینی
+            logits = model(images)  # (B, T, C)
+            log_probs = logits.log_softmax(2).permute(1, 0, 2)  # (T, B, C)
+            
+            # محاسبه طول ورودی
+            input_lengths = torch.full((log_probs.size(1),), log_probs.size(0), dtype=torch.long)
+            
+            # محاسبه loss
+            loss = criterion(log_probs, targets, input_lengths, target_lengths)
+            
+            loss.backward()
+            optimizer.step()
+            
+            train_loss += loss.item()
+            
+            # محاسبه دقت
+            with torch.no_grad():
+                preds = decode_predictions(logits.cpu())
+                for pred, true in zip(preds, texts):
+                    if pred == true:
+                        train_correct += 1
+                    train_total += 1
+            
+            pbar.set_postfix({'loss': loss.item(), 'acc': train_correct/train_total if train_total > 0 else 0})
+            avg_train_loss = train_loss / len(train_loader)
+        train_acc = train_correct / train_total if train_total > 0 else 0
+        
+        # ========== اعتبارسنجی ==========
+        model.eval()
+        val_loss = 0
+        val_correct = 0
+        val_total = 0
+        
+        with torch.no_grad():
+            for images, targets, target_lengths, texts in tqdm(val_loader, desc=f"Epoch {epoch+1}/{epochs} [Val]"):
+                images = images.to(DEVICE)
+                targets = targets.to(DEVICE)
+                
+                logits = model(images)
+                log_probs = logits.log_softmax(2).permute(1, 0, 2)
+                
+                input_lengths = torch.full((log_probs.size(1),), log_probs.size(0), dtype=torch.long)
+                loss = criterion(log_probs, targets, input_lengths, target_lengths)
+                
+                val_loss += loss.item()
+                
+                preds = decode_predictions(logits.cpu())
+                for pred, true in zip(preds, texts):
+                    if pred == true:
+                        val_correct += 1
+                    val_total += 1
+        
+        avg_val_loss = val_loss / len(val_loader)
+        val_acc = val_correct / val_total if val_total > 0 else 0
+        
+        print(f"Epoch {epoch+1}: Train Loss={avg_train_loss:.4f}, Train Acc={train_acc:.4f}, Val Loss={avg_val_loss:.4f}, Val Acc={val_acc:.4f}")
+        
+        # ذخیره بهترین مدل
+        if avg_val_loss < best_loss:
+            best_loss = avg_val_loss
+            torch.save(model.state_dict(), 'models/crnn_persian_best.pth')
+            print(f"✅ Best model saved with loss: {best_loss:.4f}")
+        
+        scheduler.step(avg_val_loss)
+    
+    return model
+
+
+# ==================== تابع پیش‌بینی (Inference) ====================
+def predict_plate(model, image_path):
+    """تشخیص متن پلاک از تصویر"""
+    model.eval()
+    
+    # بارگذاری و پیش‌پردازش تصویر
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return None
+    
+    img = cv2.resize(img, (160, 48))
+    img = img.astype(np.float32) / 255.0
+    img = torch.tensor(img).unsqueeze(0).unsqueeze(0).to(DEVICE)
+    
+    with torch.no_grad():
+        logits = model(img)
+        text = decode_predictions(logits.cpu())[0]
+    
+    return text
+
+
+# ==================== تابع تولید فایل خالی (placeholder) ====================
+def create_placeholder_model():
+    """
+    اگر مدل آموزش‌دیده ندارید، این تابع یک فایل placeholder ایجاد می‌کند
+    که بعداً با مدل واقعی جایگزین می‌شود
+    """
+    model = CRNN(NUM_CLASSES)
+    torch.save(model.state_dict(), 'models/crnn_persian_v1.pth')
+    print("✅ فایل placeholder مدل CRNN ایجاد شد")
+    print("⚠️ توجه: این مدل آموزش ندیده است و برای استفاده واقعی باید آموزش داده شود")
+
+
+# ==================== اجرای اصلی ====================
+if name == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default='create_placeholder', 
+                        choices=['train', 'predict', 'create_placeholder'])
+    parser.add_argument('--data_dir', type=str, default='dataset/plate_crops')
+    parser.add_argument('--image_path', type=str, default='test_plate.jpg')
+    parser.add_argument('--epochs', type=int, default=50)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--lr', type=float, default=0.001)
+    args = parser.parse_args()
+    
+    if args.mode == 'create_placeholder':
+        # ایجاد فایل placeholder
+        os.makedirs('models', exist_ok=True)
+        create_placeholder_model()
+    
+    elif args.mode == 'train':
+        # بررسی وجود دیتاست
+        if not os.path.exists(args.data_dir):
+            print(f"❌ دیتاست در مسیر {args.data_dir} یافت نشد")
+            print("ساختار دیتاست باید به صورت زیر باشد:")
+            print("dataset/plate_crops/")
+            print("├── images/")
+            print("│   ├── plate_001.jpg")
+            print("│   └── ...")
+            print("└── labels.json")
+            sys.exit(1)
+        
+        # ایجاد دیتاست
+        train_dataset = PersianPlateDataset(args.data_dir, augment=True)
+        val_dataset = PersianPlateDataset(args.data_dir, augment=False)
+        
+        # تقسیم داده به train/val (80/20)
+        train_size = int(0.8 * len(train_dataset))
+        val_size = len(train_dataset) - train_size
+        train_dataset, val_dataset = torch.utils.data.random_split(train_dataset, [train_size, val_size])
+        
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=PersianPlateDataset.collate_fn)
+        val_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=PersianPlateDataset.collate_fn)
+        
+        # آموزش
+        model = train_model(train_loader, val_loader, epochs=args.epochs, lr=args.lr)
+        
+        # ذخیره نسخه نهایی
+        torch.save(model.state_dict(), 'models/crnn_persian_v1.pth')
+        print("✅ مدل نهایی در models/crnn_persian_v1.pth ذخیره شد")
+    
+    elif args.mode == 'predict':
+        # بارگذاری مدل و پیش‌بینی
+        model = CRNN(NUM_CLASSES).to(DEVICE)
+        model.load_state_dict(torch.load('models/crnn_persian_v1.pth', map_location=DEVICE))
+        
+        text = predict_plate(model, args.image_path)
+        print(f"پلاک تشخیص داده شده: {text}")

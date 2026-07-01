@@ -1,0 +1,171 @@
+# monitoring/prometheus.yml
+# فایل پیکربانی Prometheus برای مانیتورینگ سامانه تشخیص پلاک
+
+global:
+  scrape_interval: 15s      # فاصله جمع‌آوری متریک‌ها
+  evaluation_interval: 15s  # فاصله ارزیابی قوانین هشدار
+  scrape_timeout: 10s       # زمان انتظار برای پاسخ هر هدف
+
+# برچسب‌های جهانی که به همه متریک‌ها اضافه می‌شود
+  external_labels:
+    environment: production
+    project: anpr
+    version: "3.0"
+
+# فایل‌های حاوی قوانین هشدار
+rule_files:
+  - "alerts.yml"
+
+# پیکربندی endpoints جمع‌آوری متریک
+scrape_configs:
+  # ==================== 1. مانیتورینگ خود Prometheus ====================
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: prometheus
+          component: monitoring
+
+  # ==================== 2. سرویس Backend API ====================
+  - job_name: "backend"
+    metrics_path: "/metrics"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["backend-service:8000"]
+        labels:
+          service: backend
+          component: api
+          language: python
+
+  # ==================== 3. سرویس Frontend ====================
+  - job_name: "frontend"
+    scrape_interval: 10s
+    static_configs:
+      - targets: ["frontend-service:8501"]
+        labels:
+          service: frontend
+          component: ui
+
+  # ==================== 4. سرویس PostgreSQL ====================
+  - job_name: "postgresql"
+    static_configs:
+      - targets: ["postgres-service:9187"]
+        labels:
+          service: database
+          component: postgresql
+    metrics_path: "/metrics"
+
+  # ==================== 5. سرویس Redis ====================
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis-service:9121"]
+        labels:
+          service: cache
+          component: redis
+    metrics_path: "/metrics"
+
+  # ==================== 6. سرویس RabbitMQ ====================
+  - job_name: "rabbitmq"
+    static_configs:
+      - targets: ["rabbitmq-service:15692"]
+        labels:
+          service: message_queue
+          component: rabbitmq
+    metrics_path: "/metrics"
+
+  # ==================== 7. سرویس MinIO ====================
+  - job_name: "minio"
+    static_configs:
+      - targets: ["minio-service:9000"]
+        labels:
+          service: storage
+          component: minio
+    metrics_path: "/minio/v2/metrics/cluster"
+
+  # ==================== 8. Node Exporter (متریک‌های سرور) ====================
+  - job_name: "node"
+    static_configs:
+      - targets: ["node-exporter:9100"]
+        labels:
+          service: node
+          component: exporter
+    scrape_interval: 30s
+
+  # ==================== 9. cAdvisor (متریک‌های کانتینرها) ====================
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+        labels:
+          service: cadvisor
+          component: container
+    scrape_interval: 15s
+
+  # ==================== 10. سرویس تشخیص پلاک ====================
+  - job_name: "detection"
+    static_configs:
+      - targets: ["detection-service:8003"]
+        labels:
+          service: detection
+          component: ml
+    metrics_path: "/metrics"
+
+  # ==================== 11. سرویس OCR ====================
+  - job_name: "ocr"
+    static_configs:
+      - targets: ["ocr-service:8002"]
+        labels:
+          service: ocr
+          component: ml
+    metrics_path: "/metrics"
+
+  # ==================== 12. سرویس ردیابی ====================
+  - job_name: "tracking"
+    static_configs:
+      - targets: ["tracking-service:8004"]
+        labels:
+          service: tracking
+          component: ml
+    metrics_path: "/metrics"
+
+  # ==================== 13. سرویس ناهنجاری ====================
+  - job_name: "anomaly"
+    static_configs:
+      - targets: ["anomaly-service:8008"]
+        labels:
+          service: anomaly
+          component: ml
+    metrics_path: "/metrics"
+
+# ==================== پیکربندی اتصال به Alertmanager ====================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+      timeout: 10s
+      api_version: v2
+      # ==================== ذخیره‌سازی داده‌ها ====================
+storage:
+  tsdb:
+    path: /prometheus
+    retention:
+      time: 15d
+      size: 50GB
+  wal:
+    path: /wal
+    segments:
+      size: 128MB
+
+# ==================== کنترل دسترسی ====================
+basic_auth_users:
+  admin: $2y$10$hash
+  viewer: $2y$10$hash2
+
+# ==================== پیکربندی خدمات کشف ====================
+service_discovery:
+  - kubernetes:
+      role: pod
+      namespaces:
+        own_namespace: anpr-system
+      selectors:
+        - role: pod
+          label: "app=anpr"

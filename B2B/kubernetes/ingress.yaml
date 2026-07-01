@@ -1,0 +1,399 @@
+# kubernetes/ingress.yaml
+# Ingress Controller برای مدیریت ترافیک ورودی سامانه تشخیص پلاک
+# شامل: مسیریابی اصلی، TLS/SSL، محدودیت نرخ، احراز هویت، و قوانین پیشرفته
+
+---
+# ==================== Ingress Controller اصلی ====================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anpr-main-ingress
+  namespace: anpr-system
+  labels:
+    app: anpr
+    component: ingress
+    environment: production
+  annotations:
+    # نصب ingress-nginx controller
+    kubernetes.io/ingress.class: "nginx"
+    
+    # SSL/TLS تنظیمات
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    
+    # محدودیت نرخ درخواست‌ها (Rate Limiting)
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "2"
+    nginx.ingress.kubernetes.io/limit-whitelist: "192.168.0.0/16,10.0.0.0/8"
+    
+    # محدودیت حجم آپلود
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    
+    # تنظیمات پروکسی
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "16k"
+    
+    # تنظیمات CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Requested-With"
+    
+    # تنظیمات WebSocket (برای پخش زنده)
+    nginx.ingress.kubernetes.io/websocket-services: "backend-service"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    
+    # تنظیمات امنیتی
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+    
+    # تنظیمات فشرده‌سازی
+    nginx.ingress.kubernetes.io/use-gzip: "true"
+    nginx.ingress.kubernetes.io/gzip-types: "application/json application/javascript text/css text/html"
+    
+    # محدودیت IP (اختیاری)
+    # nginx.ingress.kubernetes.io/whitelist-source-range: "192.168.0.0/16,10.0.0.0/8"
+    
+spec:
+  tls:
+  - hosts:
+    - api.anpr.ir
+    - anpr.ir
+    - ws.anpr.ir
+    secretName: anpr-tls-prod
+  rules:
+  # مسیریابی API بک‌اند
+  - host: api.anpr.ir
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 8000
+  
+  # مسیریابی فرانت‌اند
+  - host: anpr.ir
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 8501
+  
+  # مسیریابی WebSocket برای پخش زنده
+  - host: ws.anpr.ir
+    http:
+      paths:
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 8000
+
+---
+# ==================== Ingress برای مدیریت فایل‌های استاتیک ====================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anpr-static-ingress
+  namespace: anpr-system
+  labels:
+    app: anpr
+    component: ingress-static
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /static/$2
+    nginx.ingress.kubernetes.io/use-gzip: "true"
+    nginx.ingress.kubernetes.io/gzip-level: "9"
+    nginx.ingress.kubernetes.io/gzip-types: "text/css application/javascript image/svg+xml"
+    spec:
+  tls:
+  - hosts:
+    - static.anpr.ir
+    secretName: anpr-tls-prod
+  rules:
+  - host: static.anpr.ir
+    http:
+      paths:
+      - path: /static(/|$)(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 8501
+
+---
+# ==================== Ingress با محدودیت نرخ پیشرفته ====================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anpr-rate-limited-ingress
+  namespace: anpr-system
+  labels:
+    app: anpr
+    component: ingress-rate-limited
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # محدودیت نرخ متفاوت برای APIهای حساس
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "1"
+    
+    # محدودیت بر اساس IP
+    nginx.ingress.kubernetes.io/limit-key-type: "var_client_ip"
+    
+    # پاسخ هنگام رسیدن به محدودیت
+    nginx.ingress.kubernetes.io/limit-status-code: "429"
+    nginx.ingress.kubernetes.io/limit-rate-after: "10m"
+    nginx.ingress.kubernetes.io/limit-rate: "10k"
+    
+spec:
+  tls:
+  - hosts:
+    - api-limited.anpr.ir
+    secretName: anpr-tls-prod
+  rules:
+  - host: api-limited.anpr.ir
+    http:
+      paths:
+      - path: /detect
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 8000
+      - path: /upload
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 8000
+
+---
+# ==================== Ingress با احراز هویت پایه (Basic Auth) ====================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anpr-auth-ingress
+  namespace: anpr-system
+  labels:
+    app: anpr
+    component: ingress-auth
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # احراز هویت پایه
+    nginx.ingress.kubernetes.io/auth-type: "basic"
+    nginx.ingress.kubernetes.io/auth-secret: "basic-auth-secret"
+    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - ANPR System"
+    
+spec:
+  tls:
+  - hosts:
+    - admin.anpr.ir
+    secretName: anpr-tls-prod
+  rules:
+  - host: admin.anpr.ir
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend-service
+            port:
+              number: 8501
+
+---
+# ==================== Ingress برای مسیریابی بر اساس هدر ====================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anpr-header-ingress
+  namespace: anpr-system
+  labels:
+    app: anpr
+    component: ingress-header
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # مسیریابی بر اساس هدر
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      set $backend_service "backend-service";
+      if ($http_x_api_version = "v2") {
+        set $backend_service "backend-v2-service";
+      }
+      proxy_pass http://$backend_service;
+    
+spec:
+  tls:
+  - hosts:
+    - api.anpr.ir
+    secretName: anpr-tls-prod
+  rules:
+  - host: api.anpr.ir
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 8000
+
+---
+# ==================== Ingress برای Canary Deployment (تست نسخه جدید) ====================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: anpr-canary-ingress
+  namespace: anpr-system
+  labels:
+    app: anpr
+    component: ingress-canary
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # تنظیمات Canary (۱۰٪ ترافیک به نسخه جدید)
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "10"
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+    nginx.ingress.kubernetes.io/canary-by-cookie: "canary"
+    
+spec:
+  tls:
+  - hosts:
+    - api.anpr.ir
+    secretName: anpr-tls-prod
+  rules:
+  - host: api.anpr.ir
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: backend-canary-service
+            port:
+              number: 8000
+
+---
+# ==================== Secret برای Basic Auth ====================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: basic-auth-secret
+  namespace: anpr-system
+type: kubernetes.io/basic-auth
+stringData:
+  username: "admin"
+  password: "SecurePass123!"
+
+---
+# ==================== Middleware برای Rate Limiting (با Traefik) ====================
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit-middleware
+  namespace: anpr-system
+spec:
+  rateLimit:
+    average: 100
+    burst: 200
+    period: 1m
+    sourceCriterion:
+      ipStrategy:
+        depth: 1
+
+---
+# ==================== Middleware برای احراز هویت (با Traefik) ====================
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: auth-middleware
+  namespace: anpr-system
+spec:
+  forwardAuth:
+    address: http://backend-service:8000/auth/verify
+    trustForwardHeader: true
+    authResponseHeaders:
+      - "X-User-ID"
+      - "X-User-Role"
+
+---
+# ==================== IngressRoute (برای Traefik) ====================
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: anpr-ingressroute
+  namespace: anpr-system
+spec:
+  entryPoints:
+    - websecure
+  tls:
+    secretName: anpr-tls-prod
+  routes:
+  - kind: Rule
+    match: Host(api.anpr.ir) && PathPrefix(/)
+    middlewares:
+      - name: rate-limit-middleware
+      - name: auth-middleware
+    services:
+    - name: backend-service
+      port: 8000
+  
+  - kind: Rule
+    match: Host(anpr.ir)
+    services:
+    - name: frontend-service
+      port: 8501
+  
+  - kind: Rule
+    match: Host(ws.anpr.ir) && PathPrefix(/ws)
+    services:
+    - name: backend-service
+      port: 8000
+
+---
+# ==================== Certificate (برای TLS خودکار با Let's Encrypt) ====================
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: anpr-cert
+  namespace: anpr-system
+spec:
+  secretName: anpr-tls-prod
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  commonName: anpr.ir
+  dnsNames:
+  - anpr.ir
+  - api.anpr.ir
+  - ws.anpr.ir
+  - static.anpr.ir
+  - admin.anpr.ir

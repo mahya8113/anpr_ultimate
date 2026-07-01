@@ -1,0 +1,604 @@
+# kubernetes/service.yaml
+# سرویس‌های Kubernetes برای ارتباط بین کامپوننت‌های سامانه تشخیص پلاک
+# شامل: ClusterIP، LoadBalancer، NodePort و Headless services
+
+---
+# ==================== Namespace ====================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: anpr-system
+  labels:
+    name: anpr-system
+    environment: production
+
+---
+# ==================== 1. سرویس‌های داخلی (ClusterIP) ====================
+
+# PostgreSQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+  namespace: anpr-system
+  labels:
+    app: postgres
+    component: database
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  selector:
+    app: postgres
+  sessionAffinity: None
+
+---
+# Redis Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-service
+  namespace: anpr-system
+  labels:
+    app: redis
+    component: cache
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  selector:
+    app: redis
+
+---
+# RabbitMQ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: anpr-system
+  labels:
+    app: rabbitmq
+    component: message-queue
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5672
+    targetPort: 5672
+    protocol: TCP
+    name: amqp
+  - port: 15672
+    targetPort: 15672
+    protocol: TCP
+    name: management
+  selector:
+    app: rabbitmq
+
+---
+# MinIO Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: anpr-system
+  labels:
+    app: minio
+    component: storage
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: api
+  - port: 9001
+    targetPort: 9001
+    protocol: TCP
+    name: console
+  selector:
+    app: minio
+
+---
+# Backend API Service (Internal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: anpr-system
+  labels:
+    app: backend
+    component: api
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 8001
+    targetPort: 8001
+    protocol: TCP
+    name: grpc
+  selector:
+    app: backend
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+# Frontend Service (Internal)
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+  namespace: anpr-system
+  labels:
+    app: frontend
+    component: ui
+    tier: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8501
+    targetPort: 8501
+    protocol: TCP
+    name: http
+  selector:
+    app: frontend
+
+---
+# OCR Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ocr-service
+  namespace: anpr-system
+  labels:
+    app: ocr
+    component: ocr
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8002
+    targetPort: 8002
+    protocol: TCP
+    name: http
+  selector:
+    app: ocr
+
+---
+# Detection Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: detection-service
+  namespace: anpr-system
+  labels:
+    app: detection
+    component: detection
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8003
+    targetPort: 8003
+    protocol: TCP
+    name: http
+  selector:
+    app: detection
+
+---
+# Tracking Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: tracking-service
+  namespace: anpr-system
+  labels:
+    app: tracking
+    component: tracking
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8004
+    targetPort: 8004
+    protocol: TCP
+    name: http
+  selector:
+    app: tracking
+
+---
+# Notification Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: anpr-system
+  labels:
+    app: notification
+    component: notification
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8005
+    targetPort: 8005
+    protocol: TCP
+    name: http
+  selector:
+    app: notification
+    ---
+# Admin Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: admin-service
+  namespace: anpr-system
+  labels:
+    app: admin
+    component: admin
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8006
+    targetPort: 8006
+    protocol: TCP
+    name: http
+  selector:
+    app: admin
+
+---
+# Reporting Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: reporting-service
+  namespace: anpr-system
+  labels:
+    app: reporting
+    component: reporting
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8007
+    targetPort: 8007
+    protocol: TCP
+    name: http
+  selector:
+    app: reporting
+
+---
+# Anomaly Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: anomaly-service
+  namespace: anpr-system
+  labels:
+    app: anomaly
+    component: anomaly
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8008
+    targetPort: 8008
+    protocol: TCP
+    name: http
+  selector:
+    app: anomaly
+
+---
+# ==================== 2. سرویس‌های خارجی (LoadBalancer/NodePort) ====================
+
+# Backend API External Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-external
+  namespace: anpr-system
+  labels:
+    app: backend
+    component: api
+    tier: backend
+    exposure: external
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+    nodePort: 30080
+  - port: 443
+    targetPort: 8000
+    protocol: TCP
+    name: https
+    nodePort: 30443
+  selector:
+    app: backend
+  externalTrafficPolicy: Local
+
+---
+# Frontend External Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-external
+  namespace: anpr-system
+  labels:
+    app: frontend
+    component: ui
+    tier: frontend
+    exposure: external
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8501
+    protocol: TCP
+    name: http
+    nodePort: 30085
+  selector:
+    app: frontend
+
+---
+# MinIO External Service (Console)
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-external
+  namespace: anpr-system
+  labels:
+    app: minio
+    component: storage
+    exposure: external
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: api
+    nodePort: 30900
+  - port: 9001
+    targetPort: 9001
+    protocol: TCP
+    name: console
+    nodePort: 30901
+  selector:
+    app: minio
+
+---
+# RabbitMQ Management External
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-external
+  namespace: anpr-system
+  labels:
+    app: rabbitmq
+    component: message-queue
+    exposure: external
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 15672
+    targetPort: 15672
+    protocol: TCP
+    name: management
+    nodePort: 31567
+  selector:
+    app: rabbitmq
+
+---
+# ==================== 3. سرویس‌های Headless (برای StatefulSets) ====================
+
+# PostgreSQL Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-headless
+  namespace: anpr-system
+  labels:
+    app: postgres
+    component: database
+spec:
+  clusterIP: None
+  ports:
+  - port: 5432
+    targetPort: 5432
+    name: postgres
+  selector:
+    app: postgres
+
+---
+# Redis Headless Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-headless
+  namespace: anpr-system
+  labels:
+    app: redis
+    component: cache
+spec:
+  clusterIP: None
+  ports:
+  - port: 6379
+    targetPort: 6379
+    name: redis
+  selector:
+    app: redis
+
+---
+# ==================== 4. EndpointSlices (برای مانیتورینگ پیشرفته) ====================
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: backend-endpointslice
+  namespace: anpr-system
+  labels:
+    kubernetes.io/service-name: backend-service
+addressType: IPv4
+ports:
+- name: http
+  port: 8000
+  protocol: TCP
+endpoints:
+- conditions:
+    ready: true
+  addresses:
+  - "10.0.0.1"
+  - "10.0.0.2"
+  - "10.0.0.3"
+
+---
+# ==================== 5. ServiceMonitor (برای Prometheus) ====================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-monitor
+  namespace: anpr-system
+  labels:
+    app: backend
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: backend
+  endpoints:
+  - port: http
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+  - port: http
+    path: /health
+    interval: 15s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgres-monitor
+  namespace: anpr-system
+  labels:
+    app: postgres
+    monitoring: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  endpoints:
+  - port: postgres
+    interval: 30s
+
+---
+# ==================== 6. ServiceAccount (برای دسترسی امن) ====================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backend-service-account
+  namespace: anpr-system
+  labels:
+    app: backend
+    component: service-account
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-service-account
+  namespace: anpr-system
+  labels:
+    app: frontend
+    component: service-account
+
+---
+# ==================== 7. NetworkPolicy (برای امنیت سرویس‌ها) ====================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-network-policy
+  namespace: anpr-system
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    - podSelector:
+        matchLabels:
+          app: ocr
+    ports:
+    - protocol: TCP
+      port: 8000
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+
+---
+# ==================== 8. Endpoints (برای سرویس‌های خارج از کلاستر) ====================
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: external-database
+  namespace: anpr-system
+subsets:
+- addresses:
+  - ip: 192.168.1.100
+  ports:
+  - port: 5432
+    name: postgres
+
+---
+# ==================== 9. Service برای گواهی‌های Let's Encrypt ====================
+apiVersion: v1
+kind: Service
+metadata:
+  name: cert-manager-solver
+  namespace: anpr-system
+  annotations:
+    cert-manager.io/issue-temporary-certificate: "true"
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8089
+    protocol: TCP
+  selector:
+    app: cert-manager
+    component: solver

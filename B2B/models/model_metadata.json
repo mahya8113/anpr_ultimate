@@ -1,0 +1,290 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2025-01-15T10:30:00Z",
+  "models": {
+    "yolo_plate_detector": {
+      "active_version": "v2.1.0",
+      "versions": {
+        "v1.0.0": {
+          "file": "yolov8n_plate_v1.0.0.pt",
+          "size_mb": 12.4,
+          "accuracy": 0.852,
+          "mAP50": 0.875,
+          "mAP5095": 0.623,
+          "precision": 0.861,
+          "recall": 0.832,
+          "f1_score": 0.846,
+          "inference_time_ms": 45.2,
+          "training_date": "2024-10-01T08:00:00Z",
+          "training_dataset": "ILPD_v1",
+          "training_epochs": 100,
+          "training_batch_size": 16,
+          "learning_rate": 0.001,
+          "status": "archived",
+          "description": "نسخه اولیه آموزش دیده روی دیتاست ILPD",
+          "tags": ["baseline", "yolov8n"]
+        },
+        "v1.5.0": {
+          "file": "yolov8n_plate_v1.5.0.pt",
+          "size_mb": 12.8,
+          "accuracy": 0.878,
+          "mAP50": 0.892,
+          "mAP5095": 0.651,
+          "precision": 0.883,
+          "recall": 0.861,
+          "f1_score": 0.872,
+          "inference_time_ms": 48.7,
+          "training_date": "2024-11-15T10:00:00Z",
+          "training_dataset": "ILPD_v2 + Augmented",
+          "training_epochs": 150,
+          "training_batch_size": 16,
+          "learning_rate": 0.0005,
+          "status": "archived",
+          "description": "بهبود دقت با داده‌های تقویت شده",
+          "tags": ["improved", "augmented"]
+        },
+        "v2.0.0": {
+          "file": "yolov8x_plate_v2.0.0.pt",
+          "size_mb": 48.6,
+          "accuracy": 0.912,
+          "mAP50": 0.925,
+          "mAP5095": 0.712,
+          "precision": 0.918,
+          "recall": 0.895,
+          "f1_score": 0.906,
+          "inference_time_ms": 78.3,
+          "training_date": "2024-12-20T14:00:00Z",
+          "training_dataset": "Custom_Dataset_10k",
+          "training_epochs": 200,
+          "training_batch_size": 8,
+          "learning_rate": 0.0003,
+          "status": "archived",
+          "description": "مدل بزرگتر YOLOv8x با دقت بالاتر",
+          "tags": ["high_accuracy", "yolov8x"]
+        },
+        "v2.1.0": {
+          "file": "yolov8m_plate_v2.1.0.pt",
+          "size_mb": 24.6,
+          "accuracy": 0.908,
+          "mAP50": 0.921,
+          "mAP5095": 0.708,
+          "precision": 0.914,
+          "recall": 0.889,
+          "f1_score": 0.901,
+          "inference_time_ms": 52.4,
+          "training_date": "2025-01-10T09:00:00Z",
+          "training_dataset": "Custom_Dataset_15k",
+          "training_epochs": 180,
+          "training_batch_size": 16,
+          "learning_rate": 0.0004,
+          "status": "production",
+          "description": "نسخه بهینه از نظر دقت/سرعت - مناسب برای تولید",
+          "tags": ["production", "optimized", "balanced"],
+          "deployment_date": "2025-01-15T10:30:00Z",
+          "deployed_by": "admin@anpr.ir"
+        }
+      }
+    },
+    "crnn_persian_ocr": {
+      "active_version": "v2.0.0",
+      "versions": {
+        "v1.0.0": {
+          "file": "crnn_persian_v1.0.0.pth",
+          "size_mb": 28.4,
+          "accuracy": 0.782,
+          "cer": 0.128,
+          "wer": 0.185,
+          "inference_time_ms": 32.5,
+          "training_date": "2024-11-01T08:00:00Z",
+          "training_dataset": "Iranis_50k",
+          "training_epochs": 80,
+          "training_batch_size": 64,
+          "learning_rate": 0.001,
+          "status": "archived",
+          "description": "نسخه اولیه OCR فارسی",
+          "tags": ["baseline", "easyocr_alternative"]
+        },
+        "v1.5.0": {
+          "file": "crnn_persian_v1.5.0.pth",
+          "size_mb": 28.8,
+          "accuracy": 0.834,
+          "cer": 0.094,
+          "wer": 0.132,
+          "inference_time_ms": 35.2,
+          "training_date": "2024-12-10T11:00:00Z",
+          "training_dataset": "Iranis_80k + Synthetic",
+          "training_epochs": 120,
+          "training_batch_size": 64,
+          "learning_rate": 0.0005,
+          "status": "archived",
+          "description": "بهبود دقت با داده‌های مصنوعی",
+          "tags": ["improved", "synthetic"]
+        },
+        "v2.0.0": {
+          "file": "crnn_persian_v2.0.0.pth",
+          "size_mb": 29.2,
+          "accuracy": 0.876,
+          "cer": 0.067,
+          "wer": 0.094,
+          "inference_time_ms": 38.1,
+          "training_date": "2025-01-05T15:00:00Z",
+          "training_dataset": "Iranis_100k + Custom_Plates_20k",
+          "training_epochs": 150,
+          "training_batch_size": 128,
+          "learning_rate": 0.0003,
+          "status": "production",
+          "description": "دقت بالا با داده‌های واقعی پلاک ایران",
+          "tags": ["production", "high_accuracy"],
+          "deployment_date": "2025-01-12T09:00:00Z",
+          "deployed_by": "admin@anpr.ir"
+        }
+      }
+    },
+    "lstm_anomaly_detector": {
+      "active_version": "v1.2.0",
+      "versions": {
+        "v1.0.0": {
+          "file": "lstm_anomaly_v1.0.0.pt",
+          "size_mb": 4.2,
+          "accuracy": 0.723,
+          "precision": 0.708,
+          "recall": 0.691,
+          "f1_score": 0.699,
+          "inference_time_ms": 5.2,
+          "training_date": "2024-12-01T08:00:00Z",
+          "training_dataset": "Simulated_Trajectories",
+          "training_epochs": 50,
+          "training_batch_size": 32,
+          "learning_rate": 0.001,
+          "status": "archived",
+          "description": "تشخیص ناهنجاری اولیه",
+          "tags": ["baseline"]
+        },
+        "v1.2.0": {
+          "file": "lstm_anomaly_v1.2.0.pt",
+          "size_mb": 4.5,
+          "accuracy": 0.845,
+          "precision": 0.832,
+          "recall": 0.818,
+          "f1_score": 0.825,
+          "inference_time_ms": 6.1,
+          "training_date": "2025-01-08T10:00:00Z",
+          "training_dataset": "Real_Trajectories_5k",
+          "training_epochs": 80,
+          "training_batch_size": 64,
+          "learning_rate": 0.0005,
+          "status": "production",
+          "description": "دقت بالا روی مسیرهای واقعی",
+          "tags": ["production", "real_data"],
+          "deployment_date": "2025-01-14T14:00:00Z",
+          "deployed_by": "admin@anpr.ir"
+        }
+      }
+    },
+    "gan_synthetic_generator": {
+      "active_version": "v1.0.0",
+      "versions": {
+        "v1.0.0": {
+          "file": "gan_plate_generator_v1.0.0.pt",
+          "size_mb": 156.8,
+          "generator_loss": 1.245,
+          "discriminator_loss": 0.876,
+          "inception_score": 2.345,
+          "training_date": "2025-01-02T12:00:00Z",
+          "training_dataset": "ILPD_Plates_5k",
+          "training_epochs": 200,
+          "training_batch_size": 32,
+          "learning_rate": 0.0002,
+          "status": "production",
+          "description": "تولید تصاویر مصنوعی پلاک برای داده‌افزایی",
+          "tags": ["production", "synthetic_data"],
+          "deployment_date": "2025-01-10T11:00:00Z",
+          "deployed_by": "admin@anpr.ir"
+        }
+      }
+    }
+  },
+  "deployment_history": [
+    {
+      "timestamp": "2025-01-15T10:30:00Z",
+      "model": "yolo_plate_detector",
+      "from_version": "v2.0.0",
+      "to_version": "v2.1.0",
+      "deployed_by": "admin@anpr.ir",
+      "reason": "بهبود سرعت استنتاج با حفظ دقت",
+      "success": true,
+      "rollback_possible": true
+    },
+    {
+      "timestamp": "2025-01-12T09:00:00Z",
+      "model": "crnn_persian_ocr",
+      "from_version": "v1.5.0",
+      "to_version": "v2.0.0",
+      "deployed_by": "admin@anpr.ir",
+      "reason": "افزایش دقت با داده‌های واقعی پلاک",
+      "success": true,
+      "rollback_possible": true
+    },
+    {
+      "timestamp": "2025-01-14T14:00:00Z",
+      "model": "lstm_anomaly_detector",
+      "from_version": "v1.0.0",
+      "to_version": "v1.2.0",
+      "deployed_by": "admin@anpr.ir",
+      "reason": "بهبود تشخیص روی مسیرهای واقعی",
+      "success": true,
+      "rollback_possible": false
+    }
+  ],
+  "production_metrics": {
+    "yolo_plate_detector": {
+      "avg_inference_time_ms": 52.4,
+      "total_predictions": 125000,
+      "error_rate": 0.087,
+      "last_calibration": "2025-01-15T12:00:00Z"
+    },
+    "crnn_persian_ocr": {
+      "avg_inference_time_ms": 38.1,
+      "total_predictions": 118000,
+      "error_rate": 0.112,
+      "last_calibration": "2025-01-15T12:00:00Z"
+    },
+    "lstm_anomaly_detector": {
+      "avg_inference_time_ms": 6.1,
+      "total_predictions": 85000,
+      "false_positive_rate": 0.158,
+      "last_calibration": "2025-01-14T16:00:00Z"
+    }
+  },
+  "available_models": {
+    "gpu_optimized": ["yolov8m_plate_v2.1.0.pt", "crnn_persian_v2.0.0.pth"],
+    "cpu_optimized": ["yolov8n_plate_v1.5.0.pt", "crnn_persian_v1.5.0.pth"],
+    "edge_optimized": ["yolov8n_plate_v1.0.0.pt", "crnn_persian_v1.0.0.pth"],
+    "tensorrt_ready": ["yolov8m_plate_v2.1.0.engine"],
+    "onnx_ready": ["yolov8m_plate_v2.1.0.onnx", "crnn_persian_v2.0.0.onnx"]
+  },
+  "recommended_configurations": {
+    "production_gpu": {
+      "yolo_model": "v2.1.0",
+      "ocr_model": "v2.0.0",
+      "anomaly_model": "v1.2.0"
+    },
+    "production_cpu": {
+      "yolo_model": "v1.5.0",
+      "ocr_model": "v1.5.0",
+      "anomaly_model": "v1.0.0"
+    },
+    "edge_device": {
+      "yolo_model": "v1.0.0",
+      "ocr_model": "v1.0.0",
+      "anomaly_model": "v1.0.0"
+    }
+  },
+  "update_policy": {
+    "auto_update": false,
+    "rollback_threshold_hours": 24,
+    "min_accuracy_required": 0.85,
+    "a_b_testing_enabled": true,
+    "a_b_test_ratio": 0.1
+  }
+}

@@ -1,0 +1,247 @@
+# monitoring/alerts.yml
+# قوانین هشدار (Alerting Rules) برای مانیتورینگ سامانه تشخیص پلاک
+
+groups:
+  # ==================== گروه 1: هشدارهای سرویس‌ها ====================
+  - name: service_alerts
+    interval: 30s
+    rules:
+      # بک‌اند Down
+      - alert: BackendDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: backend
+        annotations:
+          summary: "سرویس بک‌اند در دسترس نیست"
+          description: "سرویس backend-service به مدت {{ $value }} دقیقه در دسترس نیست"
+      
+      # فرانت‌اند Down
+      - alert: FrontendDown
+        expr: up{job="frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: frontend
+        annotations:
+          summary: "سرویس فرانت‌اند در دسترس نیست"
+          description: "سرویس frontend-service به مدت {{ $value }} دقیقه در دسترس نیست"
+      
+      # دیتابیس Down
+      - alert: PostgresDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: database
+        annotations:
+          summary: "پایگاه داده PostgreSQL در دسترس نیست"
+          description: "سرویس postgres-service پاسخ نمی‌دهد"
+
+  # ==================== گروه 2: هشدارهای عملکرد ====================
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      # پاسخ API کند
+      - alert: SlowAPIResponse
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint)) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "پاسخ API کند شده است"
+          description: "اندپوینت {{ $labels.endpoint }} با تأخیر بیش از 2 ثانیه پاسخ می‌دهد"
+      
+      # CPU بالا
+      - alert: HighCPUUsage
+        expr: sum(rate(container_cpu_usage_seconds_total[5m])) by (pod) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: resource
+        annotations:
+          summary: "مصرف CPU بالاست"
+          description: "پاد {{ $labels.pod }} با مصرف CPU بیش از 80% در حال کار است"
+      
+      # Memory بالا
+      - alert: HighMemoryUsage
+        expr: sum(container_memory_usage_bytes) by (pod) / sum(container_spec_memory_limit_bytes) by (pod) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: resource
+        annotations:
+          summary: "مصرف حافظه بالاست"
+          description: "پاد {{ $labels.pod }} با مصرف حافظه بیش از 85% در حال کار است"
+
+  # ==================== گروه 3: هشدارهای تشخیص پلاک ====================
+  - name: detection_alerts
+    interval: 1m
+    rules:
+      # نرخ تشخیص پایین
+      - alert: LowDetectionRate
+        expr: rate(anpr_detections_total[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+          component: detection
+        annotations:
+          summary: "نرخ تشخیص پلاک پایین است"
+          description: "کمتر از 1 تشخیص در دقیقه ثبت شده است"
+      
+      # دقت تشخیص پایین
+      - alert: LowDetectionAccuracy
+        expr: avg(anpr_detection_confidence) < 0.6
+        for: 10m
+        labels:
+          severity: warning
+          component: detection
+        annotations:
+          summary: "دقت تشخیص پلاک کاهش یافته است"
+          description: "میانگین اطمینان تشخیص زیر 60% است"
+      
+      # خطای تشخیص بالا
+      - alert: HighDetectionErrorRate
+        expr: rate(anpr_detection_errors_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: detection
+        annotations:
+          summary: "نرخ خطای تشخیص بالاست"
+          description: "بیش از 5 خطای تشخیص در دقیقه رخ داده است"
+
+  # ==================== گروه 4: هشدارهای صف RabbitMQ ====================
+  - name: rabbitmq_alerts
+    interval: 30s
+    rules:
+    # طول صف زیاد
+      - alert: RabbitMQQueueHigh
+        expr: rabbitmq_queue_messages_ready > 1000
+        for: 5m
+        labels:
+          severity: warning
+          component: rabbitmq
+        annotations:
+          summary: "طول صف RabbitMQ زیاد شده است"
+          description: "صف {{ $labels.queue }} دارای {{ $value }} پیام در انتظار است"
+      
+      # مصرف‌کننده صف Down
+      - alert: RabbitMQConsumerDown
+        expr: rabbitmq_queue_consumers == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: rabbitmq
+        annotations:
+          summary: "مصرف‌کننده صف RabbitMQ در دسترس نیست"
+          description: "صف {{ $labels.queue }} هیچ مصرف‌کننده‌ای ندارد"
+
+  # ==================== گروه 5: هشدارهای دیسک ====================
+  - name: storage_alerts
+    interval: 1m
+    rules:
+      # فضای دیسک کم
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+        for: 5m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "فضای دیسک در حال اتمام است"
+          description: "فقط {{ $value }}% فضای دیسک باقی مانده است"
+      
+      # فضای دیسک بحرانی
+      - alert: CriticalDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 5
+        for: 1m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "فضای دیسک بحرانی است"
+          description: "فقط {{ $value }}% فضای دیسک باقی مانده است - نیاز فوری به اقدام"
+
+  # ==================== گروه 6: هشدارهای GPU ====================
+  - name: gpu_alerts
+    interval: 1m
+    rules:
+      # GPU Overheating
+      - alert: GPUOverheating
+        expr: nvidia_gpu_temperature > 85
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "دمای GPU بالاست"
+          description: "دمای GPU {{ $labels.gpu }} به {{ $value }} درجه رسیده است"
+      
+      # GPU Memory High
+      - alert: GPUHighMemory
+        expr: nvidia_gpu_memory_used_bytes / nvidia_gpu_memory_total_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          component: gpu
+        annotations:
+          summary: "مصرف حافظه GPU بالاست"
+          description: "حافظه GPU بیش از 90% استفاده شده است"
+
+  # ==================== گروه 7: هشدارهای SSL و گواهی ====================
+  - name: certificate_alerts
+    interval: 6h
+    rules:
+      # گواهی SSL در حال انقضا
+      - alert: SSLCertificateExpiring
+        expr: (ssl_certificate_expiry_timestamp_seconds - time()) / 86400 < 7
+        for: 0m
+        labels:
+          severity: warning
+          component: ssl
+        annotations:
+          summary: "گواهی SSL در حال انقضا است"
+          description: "گواهی {{ $labels.domain }} در {{ $value }} روز آینده منقضی می‌شود"
+
+  # ==================== گروه 8: هشدارهای امنیتی ====================
+  - name: security_alerts
+    interval: 1m
+    rules:
+      # تلاش مکرر برای ورود ناموفق
+      - alert: RepeatedFailedLogins
+        expr: sum(rate(login_failures_total[5m])) > 10
+        for: 5m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "تلاش مکرر برای ورود ناموفق"
+          description: "بیش از 10 تلاش ناموفق برای ورود در 5 دقیقه گذشته"
+      
+      # نرخ محدودیت فعال شده
+      - alert: RateLimitTriggered
+        expr: sum(rate(rate_limit_hits_total[5m])) > 50
+        for: 5m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "نرخ محدودیت فعال شده است"
+          description: "IP {{ $labels.ip }} بیش از حد مجاز درخواست ارسال کرده است"
+          # ==================== گروه 9: هشدارهای بک‌آپ ====================
+  - name: backup_alerts
+    interval: 1h
+    rules:
+      # بک‌آپ قدیمی
+      - alert: OldBackup
+        expr: time() - anpr_last_backup_timestamp > 86400
+        for: 0m
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: "بک‌آپ دیتابیس قدیمی است"
+          description: "آخرین بک‌آپ بیش از 24 ساعت پیش انجام شده است"
